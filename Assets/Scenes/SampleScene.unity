@@ -442,8 +442,9 @@ GameObject:
   m_Component:
   - component: {fileID: 1120631528}
   - component: {fileID: 1120631529}
+  - component: {fileID: 1120631530}
   m_Layer: 0
-  m_Name: VTKTester
+  m_Name: Tester
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -471,7 +472,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1120631526}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 60baa0b7ebfa87945a84d84bb43cf145, type: 3}
   m_Name: 
@@ -483,6 +484,30 @@ MonoBehaviour:
   edgeCompliance: 0
   substeps: 10
   iterations: 5
+  floorLevel: -1.5
+  pointRadius: 0.002
+  pointColor: {r: 0, g: 1, b: 1, a: 1}
+  edgeColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
+--- !u!114 &1120631530
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1120631526}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d9c8c68fbadbbbe40b9847aeb304d750, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VolumeConstraintXPBDSolver
+  vtkFileName: Patient 3 - liver_parenchyma - VTK.vtk
+  scaleFactor: 0.001
+  gravity: {x: 0, y: -9.81, z: 0}
+  drag: 0.2
+  edgeCompliance: 0.001
+  volumeCompliance: 0
+  substeps: 10
+  iterations: 2
   floorLevel: -1.5
   pointRadius: 0.002
   pointColor: {r: 0, g: 1, b: 1, a: 1}
