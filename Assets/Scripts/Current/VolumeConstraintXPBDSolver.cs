@@ -301,7 +301,7 @@ public class VolumeConstraintXPBDSolver : MonoBehaviour
 
             float gMassSum = (w0 * grad0.sqrMagnitude) + (w1 * grad1.sqrMagnitude) + (w2 * grad2.sqrMagnitude) + (w3 * grad3.sqrMagnitude);
 
-            if (gMassSum <= 1e-10f) continue;
+            if (gMassSum <= 1e-24f) continue;
 
             float deltaLambda = (-constraintEval - alpha * volumeLambdas[i]) / (gMassSum + alpha);
 

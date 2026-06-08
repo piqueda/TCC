@@ -533,6 +533,7 @@ MonoBehaviour:
   volumeCompliance: 0
   substeps: 10
   iterations: 2
+  friction: 0.9
   floorLevel: -1.5
   pointRadius: 0.002
   pointColor: {r: 0, g: 1, b: 1, a: 1}
