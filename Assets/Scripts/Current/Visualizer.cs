@@ -7,7 +7,7 @@ using Unity.Jobs;
 using Unity.Burst;
 
 
-public class FEMSolver : MonoBehaviour
+public class Visualizer : MonoBehaviour
 {
     [Header("File Setup")]
     public string vtkFileName = "Patient 3 - liver_parenchyma - VTK.vtk";
@@ -35,6 +35,11 @@ public class FEMSolver : MonoBehaviour
     public float pointRadius = 0.002f;
     public Color pointColor = Color.cyan;
     public Color edgeColor = Color.yellow;
+
+    [Header("Visual Mesh Setup")]
+    public MeshFilter visualMeshFilter;
+    private NativeArray<VisualVertexMapping> skinningMapping;
+    private NativeArray<Vector3> visualVertices;
 
     private struct Edge
     {
@@ -65,6 +70,12 @@ public class FEMSolver : MonoBehaviour
     private NativeArray<InsideMatrix3x3> invRestPoses;
     private NativeArray<float> invRestVolumes;
 
+    public struct VisualVertexMapping
+    {
+        public int tetIndex;
+        public float4 weights;
+    }
+
     void Start()
     {
         string path = Path.Combine(Application.streamingAssetsPath, vtkFileName);
@@ -72,11 +83,11 @@ public class FEMSolver : MonoBehaviour
         
         if (!loader.Load(path, scaleFactor))
         {
-            Debug.LogError($"[FEMSolver] Falhou em carregar o arquivo");
+            Debug.LogError($"[Visualizer] Falhou em carregar o arquivo");
         }
 
         int vertexCount = loader.vertices.Length;
-        Debug.Log($"[FEMSolver] Foram carregados {vertexCount} vertices");
+        Debug.Log($"[Visualizer] Foram carregados {vertexCount} vertices");
         
         positions = new NativeArray<float3>(vertexCount, Allocator.Persistent);
         predictedPositions = new NativeArray<float3>(vertexCount, Allocator.Persistent);
@@ -111,27 +122,21 @@ public class FEMSolver : MonoBehaviour
         }
 
         int edgeCount = tempEdges.Count;
-        Debug.Log($"[FEMSolver] Foram carregados {edgeCount} arestas unicas");
+        Debug.Log($"[Visualizer] Foram carregados {edgeCount} arestas unicas");
         uniqueEdges = new NativeArray<Edge>(edgeCount, Allocator.Persistent);
-        //restLengths = new NativeArray<float>(edgeCount, Allocator.Persistent);
-        //edgeLambdas = new NativeArray<float>(edgeCount, Allocator.Persistent);
 
         for(int i = 0; i < edgeCount; i++)
         {
             uniqueEdges[i] = tempEdges[i];
-            //restLengths[i] = math.distance(positions[tempEdges[i].vA], positions[tempEdges[i].vB]);
         }
 
         int tetraCount = loader.tetrahedra.Length/4;
-        Debug.Log($"[FEMSolver] Foram carregados {tetraCount} tetraedros");
+        Debug.Log($"[Visualizer] Foram carregados {tetraCount} tetraedros");
         uniqueTetrahedra = new NativeArray<int>(loader.tetrahedra.Length, Allocator.Persistent);
         for(int i = 0; i < loader.tetrahedra.Length; i++)
         {
             uniqueTetrahedra[i] = loader.tetrahedra[i];
         }
-
-        //restVolumes = new NativeArray<float>(tetraCount, Allocator.Persistent);
-        //volumeLambdas = new NativeArray<float>(tetraCount, Allocator.Persistent);
 
         invRestPoses = new NativeArray<InsideMatrix3x3>(tetraCount, Allocator.Persistent);
         invRestVolumes = new NativeArray<float>(tetraCount, Allocator.Persistent);
@@ -150,19 +155,6 @@ public class FEMSolver : MonoBehaviour
 
             float3x3 J = new float3x3(p1 - p0, p2 - p0, p3 - p0);
             float V = math.determinant(J)/6.0f;
-
-            /*
-            float rawVolume = math.dot(math.cross(p1 - p0, p2 - p0), p3 - p0)/6f;
-            if(rawVolume < 0f)
-            {
-                int temp = uniqueTetrahedra[i * 4 + 1];
-                uniqueTetrahedra[i * 4 + 1] = uniqueTetrahedra[i * 4 + 2];
-                uniqueTetrahedra[i * 4 + 2] = temp;
-
-                rawVolume = -rawVolume;
-            }
-            restVolumes[i] = rawVolume;
-            */
 
             if (V < 0f)
             {
@@ -209,7 +201,37 @@ public class FEMSolver : MonoBehaviour
                 invMasses[i] = 0.0f; 
             }
         }
-        
+
+        if(visualMeshFilter != null && visualMeshFilter.sharedMesh != null)
+        {
+            Mesh visMesh = visualMeshFilter.sharedMesh;
+            visMesh.MarkDynamic();
+
+            Vector3[] verts = visMesh.vertices;
+            int vCount = verts.Length;
+
+            Debug.Log($"[Visualizer] Inicializando skinning para {vCount} vertices");
+
+            NativeArray<float3> nativeVisVerts = new NativeArray<float3>(vCount, Allocator.TempJob);
+            for(int i = 0; i < vCount; i++)
+            {
+                nativeVisVerts[i] = visualMeshFilter.transform.TransformPoint(verts[i]);
+            }
+
+            skinningMapping = new NativeArray<VisualVertexMapping>(vCount, Allocator.Persistent);
+            visualVertices = new NativeArray<Vector3>(vCount, Allocator.Persistent);
+
+            InitializeVisualSkinningJob initJob = new InitializeVisualSkinningJob
+            {
+              visualVertices = nativeVisVerts,
+              physPositions = this.positions,
+              physTetrahedra = this.uniqueTetrahedra,
+              mapping = this.skinningMapping  
+            };
+            initJob.Schedule(vCount, 64).Complete();
+            nativeVisVerts.Dispose();
+            Debug.Log($"[Visualizer] Skinning calculado!");
+        }
     }
 
     private void TryAddEdge(int a, int b, HashSet<long> tracker, List<Edge> tempEdges)
@@ -249,25 +271,6 @@ public class FEMSolver : MonoBehaviour
             };
             JobHandle integrateHandle = integrateJob.Schedule(positions.Length, 64);
 
-            /*
-            SolveConstraintsJob solveJob = new SolveConstraintsJob
-            {
-                predictedPositions = this.predictedPositions,
-                invMasses = this.invMasses,
-                uniqueEdges = this.uniqueEdges,
-                restLengths = this.restLengths,
-                edgeLambdas = this.edgeLambdas,
-                uniqueTetrahedra = this.uniqueTetrahedra,
-                restVolumes = this.restVolumes,
-                volumeLambdas = this.volumeLambdas,
-                edgeCompliance = this.edgeCompliance,
-                volumeCompliance = this.volumeCompliance,
-                h = h,
-                iterations = this.iterations
-            };
-            JobHandle solveHandle = solveJob.Schedule(integrateHandle);
-            */
-
             SolveNeoHookeanConstraintsJob solveJob = new SolveNeoHookeanConstraintsJob
             {
               predictedPositions = this.predictedPositions,
@@ -294,6 +297,25 @@ public class FEMSolver : MonoBehaviour
             JobHandle finalizeHandle = finalizeJob.Schedule(positions.Length, 64, solveHandle);
 
             finalizeHandle.Complete();
+
+            if(visualMeshFilter != null && skinningMapping.IsCreated)
+            {
+                UpdateVisualMeshJob skinJob = new UpdateVisualMeshJob
+                {
+                  physPositions = this.positions,
+                  physTetrahedra = this.uniqueTetrahedra,
+                  mapping = this.skinningMapping,
+                  visualVertices = this.visualVertices,
+                  worldToLocal = visualMeshFilter.transform.worldToLocalMatrix  
+                };
+
+                skinJob.Schedule(visualVertices.Length, 64).Complete();
+
+                Mesh visMesh = visualMeshFilter.mesh;
+                visMesh.SetVertices(visualVertices);
+                visMesh.RecalculateNormals();
+                visMesh.RecalculateBounds();
+            }
         }
     }
     
@@ -324,118 +346,6 @@ public class FEMSolver : MonoBehaviour
             }
         }
     }
-
-    /*
-    [BurstCompile(FloatMode = FloatMode.Fast, FloatPrecision = FloatPrecision.Standard, CompileSynchronously = true)]
-    private struct SolveConstraintsJob : IJob
-    {
-        public NativeArray<float3> predictedPositions;
-        [ReadOnly] public NativeArray<float> invMasses;
-
-        [ReadOnly] public NativeArray<Edge> uniqueEdges;
-        [ReadOnly] public NativeArray<float> restLengths;
-        public NativeArray<float> edgeLambdas;
-
-        [ReadOnly] public NativeArray<int> uniqueTetrahedra;
-        [ReadOnly] public NativeArray<float> restVolumes;
-        public NativeArray<float> volumeLambdas;
-
-        public float edgeCompliance;
-        public float volumeCompliance;
-        public float h;
-        public int iterations;
-
-        public void Execute()
-        {
-            for (int i = 0; i < edgeLambdas.Length; i++) edgeLambdas[i] = 0f;
-            for (int i = 0; i < volumeLambdas.Length; i++) volumeLambdas[i] = 0f;
-
-            float edgeAlpha = edgeCompliance / (h * h);
-            float volumeAlpha = volumeCompliance / (h * h);
-            int tetraCount = uniqueTetrahedra.Length / 4;
-
-            for (int iter = 0; iter < iterations; iter++)
-            {
-                for (int e = 0; e < uniqueEdges.Length; e++)
-                {
-                    Edge edge = uniqueEdges[e];
-                    int idxA = edge.vA;
-                    int idxB = edge.vB;
-
-                    float wA = invMasses[idxA];
-                    float wB = invMasses[idxB];
-                    float wSum = wA + wB;
-                    if (wSum <= 0f) continue;
-
-                    float3 posA = predictedPositions[idxA];
-                    float3 posB = predictedPositions[idxB];
-
-                    float3 direction = posA - posB;
-                    float currentLength = math.length(direction);
-                    if (currentLength < 0.0001f) continue;
-                    direction /= currentLength;
-
-                    float constraintEval = currentLength - restLengths[e];
-
-                    float deltaLambda = (-constraintEval - edgeAlpha * edgeLambdas[e]) / (wSum + edgeAlpha);
-                    edgeLambdas[e] += deltaLambda;
-
-                    float3 correction = deltaLambda * direction;
-                    predictedPositions[idxA] += wA * correction;
-                    predictedPositions[idxB] -= wB * correction;
-                }
-
-                for (int i = 0; i < tetraCount; i++)
-                {
-                    int id0 = uniqueTetrahedra[i * 4 + 0];
-                    int id1 = uniqueTetrahedra[i * 4 + 1];
-                    int id2 = uniqueTetrahedra[i * 4 + 2];
-                    int id3 = uniqueTetrahedra[i * 4 + 3];
-
-                    float w0 = invMasses[id0];
-                    float w1 = invMasses[id1];
-                    float w2 = invMasses[id2];
-                    float w3 = invMasses[id3];
-
-                    if (w0 + w1 + w2 + w3 <= 0f) continue;
-
-                    float3 p0 = predictedPositions[id0];
-                    float3 p1 = predictedPositions[id1];
-                    float3 p2 = predictedPositions[id2];
-                    float3 p3 = predictedPositions[id3];
-
-                    float3 d1 = p1 - p0;
-                    float3 d2 = p2 - p0;
-                    float3 d3 = p3 - p0;
-
-                    float currentVolume = math.dot(math.cross(d1, d2), d3) / 6f;
-                    float constraintEval = currentVolume - restVolumes[i];
-
-                    float3 grad3 = math.cross(d1, d2) / 6f;
-                    float3 grad2 = math.cross(d3, d1) / 6f;
-                    float3 grad1 = math.cross(d2, d3) / 6f;
-                    float3 grad0 = -(grad1 + grad2 + grad3);
-
-                    float gMassSum = (w0 * math.lengthsq(grad0)) + 
-                                     (w1 * math.lengthsq(grad1)) + 
-                                     (w2 * math.lengthsq(grad2)) + 
-                                     (w3 * math.lengthsq(grad3));
-
-                    float denom = gMassSum + volumeAlpha;
-                    if(denom <= 1e-12f) continue;
-
-                    float deltaLambda = (-constraintEval - volumeAlpha * volumeLambdas[i]) / (gMassSum + volumeAlpha);
-
-                    volumeLambdas[i] += deltaLambda;
-                    predictedPositions[id0] += w0 * deltaLambda * grad0;
-                    predictedPositions[id1] += w1 * deltaLambda * grad1;
-                    predictedPositions[id2] += w2 * deltaLambda * grad2;
-                    predictedPositions[id3] += w3 * deltaLambda * grad3;
-                }
-            }
-        }
-    }
-    */
 
     [BurstCompile(FloatMode = FloatMode.Fast, FloatPrecision = FloatPrecision.Standard, CompileSynchronously = true)]
     private struct SolveNeoHookeanConstraintsJob : IJob
@@ -598,6 +508,96 @@ public class FEMSolver : MonoBehaviour
         }
     }
 
+    [BurstCompile(FloatMode = FloatMode.Fast, CompileSynchronously = true)]
+    private struct UpdateVisualMeshJob: IJobParallelFor
+    {
+        [ReadOnly] public NativeArray<float3> physPositions;
+        [ReadOnly] public NativeArray<int> physTetrahedra;
+        [ReadOnly] public NativeArray<VisualVertexMapping> mapping;
+        public float4x4 worldToLocal;
+
+        public NativeArray<Vector3> visualVertices;
+        public void Execute(int v)
+        {
+            VisualVertexMapping map = mapping[v];
+            int p0_idx = physTetrahedra[map.tetIndex * 4 + 0];
+            int p1_idx = physTetrahedra[map.tetIndex * 4 + 1];
+            int p2_idx = physTetrahedra[map.tetIndex * 4 + 2];
+            int p3_idx = physTetrahedra[map.tetIndex * 4 + 3];
+
+            float3 p0 = physPositions[p0_idx];
+            float3 p1 = physPositions[p1_idx];
+            float3 p2 = physPositions[p2_idx];
+            float3 p3 = physPositions[p3_idx];
+
+            float3 worldPos = (p0 * map.weights.x) + (p1 * map.weights.y) + (p2 * map.weights.z) + (p3 * map.weights.w);
+            visualVertices[v] = math.transform(worldToLocal, worldPos);
+        }
+    }
+   [BurstCompile(CompileSynchronously = true)]
+   private struct InitializeVisualSkinningJob: IJobParallelFor
+    {
+        [ReadOnly] public NativeArray<float3> visualVertices;
+        [ReadOnly] public NativeArray<float3> physPositions;
+        [ReadOnly] public NativeArray<int> physTetrahedra;
+
+        public NativeArray<VisualVertexMapping> mapping;
+
+        public void Execute(int v)
+        {
+            float3 vPos = visualVertices[v];
+
+            int bestTet = 0;
+            float4 bestWeights = new float4(1,0,0,0);
+            float minError  = float.MaxValue;
+
+            int tetCount = physTetrahedra.Length/4;
+            
+            for(int t = 0; t < tetCount; t++)
+            {
+                int p0_idx = physTetrahedra[t * 4 + 0];
+                int p1_idx = physTetrahedra[t * 4 + 1];
+                int p2_idx = physTetrahedra[t * 4 + 2];
+                int p3_idx = physTetrahedra[t * 4 + 3];
+
+                float3 p0 = physPositions[p0_idx];
+                float3 p1 = physPositions[p1_idx];
+                float3 p2 = physPositions[p2_idx];
+                float3 p3 = physPositions[p3_idx];
+
+                float3x3 J = new float3x3(p1 - p0, p2 - p0, p3 - p0);
+
+                if(math.abs(math.determinant(J)) < 1e-7f) continue;
+
+                float3x3 invJ = math.inverse(J);
+                float3 b123 = math.mul(invJ, vPos - p0);
+
+                float b0 = 1.0f - b123.x - b123.y - b123.z;
+                float4 w = new float4(b0, b123.x, b123.y, b123.z);
+
+                float error = math.max(0f, -w.x) + math.max(0f, -w.y) + math.max(0f, -w.z) + math.max(0f, -w.w);
+
+                if(error < minError)
+                {
+                    minError = error;
+                    bestTet = t;
+                    bestWeights = w;
+                }
+
+                if(error <= 0.0001f)
+                {
+                    break;
+                }
+            }
+
+            mapping[v] = new VisualVertexMapping
+            {
+              tetIndex = bestTet,
+              weights = bestWeights  
+            };
+        }
+    }
+
     void OnDrawGizmos()
     {
         if (!Application.isPlaying || !positions.IsCreated) return;
@@ -611,7 +611,7 @@ public class FEMSolver : MonoBehaviour
             
             if (float.IsNaN(pos.x) || float.IsInfinity(pos.x)) continue; 
             
-            Gizmos.DrawSphere(pos, pointRadius);
+            //Gizmos.DrawSphere(pos, pointRadius);
         }
 
         if (uniqueEdges.IsCreated)
@@ -637,14 +637,14 @@ public class FEMSolver : MonoBehaviour
         if (invMasses.IsCreated) invMasses.Dispose();
         
         if (uniqueEdges.IsCreated) uniqueEdges.Dispose();
-        //if (restLengths.IsCreated) restLengths.Dispose();
-        //if (edgeLambdas.IsCreated) edgeLambdas.Dispose();
         
         if (uniqueTetrahedra.IsCreated) uniqueTetrahedra.Dispose();
-        //if (restVolumes.IsCreated) restVolumes.Dispose();
-        //if (volumeLambdas.IsCreated) volumeLambdas.Dispose();
 
         if(invRestPoses.IsCreated) invRestPoses.Dispose();
         if(invRestVolumes.IsCreated) invRestVolumes.Dispose();
+
+        if(skinningMapping.IsCreated) skinningMapping.Dispose();
+        if(visualVertices.IsCreated) visualVertices.Dispose();
     }
 }
+
