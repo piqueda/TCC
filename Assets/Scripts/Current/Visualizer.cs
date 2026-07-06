@@ -28,6 +28,13 @@ public class Visualizer : MonoBehaviour
     public float devCompliance = 0.001f;
     public float density = 1000f;
 
+    [Header("VR Interaction Settings")]
+    [Tooltip("Set to -1 when not grabbing anything")]
+    public int grabbedVertexIndex = -1; 
+    public Vector3 grabTargetPosition;
+    [Tooltip("0 = stiff/glued to hand, higher numbers = stretchy/elastic")]
+    public float interactionCompliance = 0.0f;
+
     [Header("Floor Collision")]
     public float floorLevel = -1.5f;
 
@@ -48,7 +55,7 @@ public class Visualizer : MonoBehaviour
         public Edge(int a, int b) {vA = a; vB = b;}
     }
 
-    private NativeArray<float3> positions;
+    public NativeArray<float3> positions;
     private NativeArray<float3> predictedPositions;
     private NativeArray<float3> velocities;
     private NativeArray<float> invMasses;
@@ -285,6 +292,21 @@ public class Visualizer : MonoBehaviour
             };
             JobHandle solveHandle = solveJob.Schedule(integrateHandle);
 
+            JobHandle interactionHandle = solveHandle;
+            if(grabbedVertexIndex >= 0 && grabbedVertexIndex < positions.Length)
+            {
+                SolveAttachmentConstraintJob interactionJob = new SolveAttachmentConstraintJob
+                {
+                  predictedPositions = this.predictedPositions,
+                  invMasses = this.invMasses,
+                  grabbedVertexIndex = this.grabbedVertexIndex,
+                  targetPosition = (float3)this.grabTargetPosition,
+                  compliance = this.interactionCompliance,
+                  h = h  
+                };
+                interactionHandle = interactionJob.Schedule(solveHandle);
+            }
+
             FinalizePositionsJob finalizeJob = new FinalizePositionsJob
             {
                 positions = this.positions,
@@ -294,7 +316,7 @@ public class Visualizer : MonoBehaviour
                 h = h,
                 friction = this.friction
             };
-            JobHandle finalizeHandle = finalizeJob.Schedule(positions.Length, 64, solveHandle);
+            JobHandle finalizeHandle = finalizeJob.Schedule(positions.Length, 64, interactionHandle);
 
             finalizeHandle.Complete();
 
@@ -595,6 +617,35 @@ public class Visualizer : MonoBehaviour
               tetIndex = bestTet,
               weights = bestWeights  
             };
+        }
+    }
+
+    [BurstCompile(CompileSynchronously = true)]
+    private struct SolveAttachmentConstraintJob : IJob
+    {
+        public NativeArray<float3> predictedPositions;
+        [ReadOnly] public NativeArray<float> invMasses;
+
+        public int grabbedVertexIndex;
+        public float3 targetPosition;
+        public float compliance;
+        public float h;
+
+        public void Execute()
+        {
+            // Boundary safety check
+            if (grabbedVertexIndex < 0 || grabbedVertexIndex >= predictedPositions.Length) return;
+
+            float w = invMasses[grabbedVertexIndex];
+            if (w <= 0f) return; // If it's a static anchor point, don't move it
+
+            float alpha = compliance / (h * h);
+            float3 currentPos = predictedPositions[grabbedVertexIndex];
+            float3 dir = currentPos - targetPosition;
+
+            // Calculate XPBD displacement correction
+            float3 deltaP = -(w / (w + alpha)) * dir;
+            predictedPositions[grabbedVertexIndex] += deltaP;
         }
     }
 
