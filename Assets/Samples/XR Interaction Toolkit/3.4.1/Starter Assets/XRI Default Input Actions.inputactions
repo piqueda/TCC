@@ -457,8 +457,19 @@
             ],
             "bindings": [
                 {
+                    "name": "",
+                    "id": "8d83458e-e86f-47c6-a4a2-723a1c7dff15",
+                    "path": "<OculusTouchController>{LeftHand}/deviceRotation",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "Rotation",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
                     "name": "Quaternion Fallback",
-                    "id": "61466a56-4ee4-47b1-aa6a-4806de1de5f2",
+                    "id": "f344adc6-fbfa-4a96-a9c2-1f4c876738f8",
                     "path": "QuaternionFallback",
                     "interactions": "",
                     "processors": "",
@@ -469,8 +480,8 @@
                 },
                 {
                     "name": "first",
-                    "id": "afdcfbff-e241-4fdd-a6d1-23b0bf273360",
-                    "path": "<XRController>{LeftHand}/pointerRotation",
+                    "id": "c912be6f-9dbf-4cd1-a20c-26dff38ae43e",
+                    "path": "",
                     "interactions": "",
                     "processors": "",
                     "groups": "",
@@ -480,8 +491,8 @@
                 },
                 {
                     "name": "second",
-                    "id": "ed03d944-4c09-4c38-8b68-5c844e18ca7c",
-                    "path": "<XRController>{LeftHand}/deviceRotation",
+                    "id": "a6567f8b-93bc-4e13-93b4-8a5b6b7d5c0d",
+                    "path": "",
                     "interactions": "",
                     "processors": "",
                     "groups": "",
@@ -491,25 +502,14 @@
                 },
                 {
                     "name": "third",
-                    "id": "c98fc8c8-7fc6-4909-89b6-c5b7568e7275",
-                    "path": "<XRHandDevice>{LeftHand}/deviceRotation",
+                    "id": "b869d6c4-47b4-40de-9c16-92282e4a163d",
+                    "path": "",
                     "interactions": "",
                     "processors": "",
                     "groups": "",
                     "action": "Rotation",
                     "isComposite": false,
                     "isPartOfComposite": true
-                },
-                {
-                    "name": "",
-                    "id": "8d83458e-e86f-47c6-a4a2-723a1c7dff15",
-                    "path": "<XRController>{LeftHand}/deviceRotation",
-                    "interactions": "",
-                    "processors": "",
-                    "groups": "",
-                    "action": "Rotation",
-                    "isComposite": false,
-                    "isPartOfComposite": false
                 },
                 {
                     "name": "Vector 3 Fallback",
@@ -1572,61 +1572,6 @@
             ],
             "bindings": [
                 {
-                    "name": "Quaternion Fallback",
-                    "id": "84e51e1c-1b95-4f3e-a61f-29da6c1f0816",
-                    "path": "QuaternionFallback",
-                    "interactions": "",
-                    "processors": "",
-                    "groups": "",
-                    "action": "Rotation",
-                    "isComposite": true,
-                    "isPartOfComposite": false
-                },
-                {
-                    "name": "first",
-                    "id": "3722d501-eb80-4f61-9361-08a5ea7a1394",
-                    "path": "<XRController>{RightHand}/pointerRotation",
-                    "interactions": "",
-                    "processors": "",
-                    "groups": "",
-                    "action": "Rotation",
-                    "isComposite": false,
-                    "isPartOfComposite": true
-                },
-                {
-                    "name": "second",
-                    "id": "2e6ad191-d5aa-4919-aac6-295c83387a72",
-                    "path": "<XRController>{RightHand}/deviceRotation",
-                    "interactions": "",
-                    "processors": "",
-                    "groups": "",
-                    "action": "Rotation",
-                    "isComposite": false,
-                    "isPartOfComposite": true
-                },
-                {
-                    "name": "third",
-                    "id": "b9ecb60d-341e-47cf-b50a-41d5815af8b0",
-                    "path": "<XRHandDevice>{RightHand}/deviceRotation",
-                    "interactions": "",
-                    "processors": "",
-                    "groups": "",
-                    "action": "Rotation",
-                    "isComposite": false,
-                    "isPartOfComposite": true
-                },
-                {
-                    "name": "",
-                    "id": "e014c22e-7ce8-4249-b62f-c1f11211f703",
-                    "path": "<XRController>{RightHand}/deviceRotation",
-                    "interactions": "",
-                    "processors": "",
-                    "groups": "",
-                    "action": "Rotation",
-                    "isComposite": false,
-                    "isPartOfComposite": false
-                },
-                {
                     "name": "Vector 3 Fallback",
                     "id": "74e968f1-ad08-4a82-a68d-764517faecef",
                     "path": "Vector3Fallback",
@@ -1999,6 +1944,61 @@
                     "action": "Thumbstick",
                     "isComposite": false,
                     "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "2ed2b3b4-9eca-4235-aa3d-8a62dfe9242c",
+                    "path": "<OculusTouchController>{RightHand}/deviceRotation",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "Rotation",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "Quaternion Fallback",
+                    "id": "b461728b-adf3-46e6-9e3c-127359c221c3",
+                    "path": "QuaternionFallback",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "Rotation",
+                    "isComposite": true,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "first",
+                    "id": "792ea79c-385a-4a12-ac26-de60efd0d47d",
+                    "path": "",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "Rotation",
+                    "isComposite": false,
+                    "isPartOfComposite": true
+                },
+                {
+                    "name": "second",
+                    "id": "86825606-c840-4e97-a1b2-96d84c5dfd77",
+                    "path": "",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "Rotation",
+                    "isComposite": false,
+                    "isPartOfComposite": true
+                },
+                {
+                    "name": "third",
+                    "id": "0305e3e1-73e6-4e79-812d-4257402b8f42",
+                    "path": "",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "Rotation",
+                    "isComposite": false,
+                    "isPartOfComposite": true
                 }
             ]
         },
