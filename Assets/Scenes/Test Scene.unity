@@ -361,6 +361,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 1670256624, guid: f6336ac4ac8b4d34bc5072418cdc62a0, type: 3}
       insertIndex: -1
       addedObject: {fileID: 369485189}
+    - targetCorrespondingSourceObject: {fileID: 1670256624, guid: f6336ac4ac8b4d34bc5072418cdc62a0, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 369485195}
   m_SourcePrefab: {fileID: 100100000, guid: f6336ac4ac8b4d34bc5072418cdc62a0, type: 3}
 --- !u!1 &292302856
 GameObject:
@@ -406,13 +409,41 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 369485186}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 8437a1703c940d342bf89b7114ff9739, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::VRPhysicsGrabber
   physicsSolver: {fileID: 1437259747}
   grabRadius: 0.1
+  isGrabbing: 0
+--- !u!114 &369485195
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 369485186}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b2e491546db57ea4baa48d7dbd94434c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VRPhysicsGrabberModified
+  physicsSolver: {fileID: 1437259747}
+  grabAction:
+    m_UseReference: 1
+    m_Action:
+      m_Name: Grab
+      m_Type: 0
+      m_ExpectedControlType: 
+      m_Id: 60ecb86e-959a-403f-887a-497e839b73e0
+      m_Processors: 
+      m_Interactions: 
+      m_SingletonActionBindings: []
+      m_Flags: 0
+    m_Reference: {fileID: 7904272356298805229, guid: c348712bda248c246b8c49b3db54643f, type: 3}
+  grabRadius: 0.05
+  showGrabSphere: 1
 --- !u!1001 &606121994
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -710,8 +741,10 @@ MonoBehaviour:
   friction: 0.9
   devCompliance: 0.001
   density: 1000
-  grabbedVertexIndex: -1
-  grabTargetPosition: {x: 0, y: 0, z: 0}
+  handLocalTargetPosition:
+    x: 0
+    y: 0
+    z: 0
   interactionCompliance: 0
   floorLevel: -1.5
   pointRadius: 0.002

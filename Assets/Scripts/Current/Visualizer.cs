@@ -28,10 +28,18 @@ public class Visualizer : MonoBehaviour
     public float devCompliance = 0.001f;
     public float density = 1000f;
 
+    /*
     [Header("VR Interaction Settings")]
     [Tooltip("Set to -1 when not grabbing anything")]
     public int grabbedVertexIndex = -1; 
     public Vector3 grabTargetPosition;
+    [Tooltip("0 = stiff/glued to hand, higher numbers = stretchy/elastic")]
+    public float interactionCompliance = 0.0f;
+    */
+
+    [Header("VR Interaction Settings")]
+    public NativeList<GrabbedVertex> grabbedVertices; 
+    public float3 handLocalTargetPosition;
     [Tooltip("0 = stiff/glued to hand, higher numbers = stretchy/elastic")]
     public float interactionCompliance = 0.0f;
 
@@ -82,7 +90,11 @@ public class Visualizer : MonoBehaviour
         public int tetIndex;
         public float4 weights;
     }
-
+    public struct GrabbedVertex
+    {
+        public int index;
+        public float3 localOffset;
+    }
     void Start()
     {
         string path = Path.Combine(Application.streamingAssetsPath, vtkFileName);
@@ -100,6 +112,7 @@ public class Visualizer : MonoBehaviour
         predictedPositions = new NativeArray<float3>(vertexCount, Allocator.Persistent);
         velocities = new NativeArray<float3>(vertexCount, Allocator.Persistent);
         invMasses = new NativeArray<float>(vertexCount, Allocator.Persistent);
+        grabbedVertices = new NativeList<GrabbedVertex>(Allocator.Persistent);
 
         for(int i = 0; i < vertexCount; i++)
         {
@@ -292,6 +305,7 @@ public class Visualizer : MonoBehaviour
             };
             JobHandle solveHandle = solveJob.Schedule(integrateHandle);
 
+            /*
             JobHandle interactionHandle = solveHandle;
             if(grabbedVertexIndex >= 0 && grabbedVertexIndex < positions.Length)
             {
@@ -305,6 +319,22 @@ public class Visualizer : MonoBehaviour
                   h = h  
                 };
                 interactionHandle = interactionJob.Schedule(solveHandle);
+            }
+            */
+
+            JobHandle interactionHandle = solveHandle;
+            if(grabbedVertices.IsCreated && grabbedVertices.Length > 0)
+            {
+                SolveMultiAttachmentConstraintJob interactionJob = new SolveMultiAttachmentConstraintJob
+                {
+                  predictedPositions = this.predictedPositions,
+                  invMasses = this.invMasses,
+                  grabbedVertices = this.grabbedVertices.AsArray(),
+                  targetPosition = this.handLocalTargetPosition,
+                  compliance = this.interactionCompliance,
+                  h = h  
+                };
+                interactionHandle = interactionJob.Schedule(grabbedVertices.Length, 16, solveHandle);
             }
 
             FinalizePositionsJob finalizeJob = new FinalizePositionsJob
@@ -620,6 +650,7 @@ public class Visualizer : MonoBehaviour
         }
     }
 
+    /*
     [BurstCompile(CompileSynchronously = true)]
     private struct SolveAttachmentConstraintJob : IJob
     {
@@ -648,6 +679,37 @@ public class Visualizer : MonoBehaviour
             predictedPositions[grabbedVertexIndex] += deltaP;
         }
     }
+    */
+
+    [BurstCompile(CompileSynchronously = true)]
+    private struct SolveMultiAttachmentConstraintJob: IJobParallelFor
+    {
+        public NativeArray<float3> predictedPositions;
+        [ReadOnly] public NativeArray<float> invMasses;
+        [ReadOnly] public NativeArray<GrabbedVertex> grabbedVertices;
+        public float3 targetPosition;
+        public float compliance;
+        public float h;
+
+        public void Execute(int i)
+        {
+            GrabbedVertex g = grabbedVertices[i];
+            int idx = g.index;
+            
+            if(idx < 0 || idx >= predictedPositions.Length) return;
+            float w = invMasses[idx];
+            if(w <= 0f) return;
+
+            float alpha = compliance/ (h*h);
+            float3 desiredPos = targetPosition + g.localOffset;
+            float3 currentPos = predictedPositions[idx];
+            float3 dir = currentPos - desiredPos;
+
+            float3 deltaP = -(w / (w + alpha)) * dir;
+            predictedPositions[idx] += deltaP;
+        }
+    }
+
 
     void OnDrawGizmos()
     {
@@ -696,6 +758,7 @@ public class Visualizer : MonoBehaviour
 
         if(skinningMapping.IsCreated) skinningMapping.Dispose();
         if(visualVertices.IsCreated) visualVertices.Dispose();
+        if (grabbedVertices.IsCreated) grabbedVertices.Dispose();
     }
 }
 
