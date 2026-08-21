@@ -39,7 +39,8 @@ public class Visualizer : MonoBehaviour
 
     [Header("VR Interaction Settings")]
     public NativeList<GrabbedVertex> grabbedVertices; 
-    public float3 handLocalTargetPosition;
+    //public float3 handLocalTargetPosition;
+    public NativeArray<float3> handTargetPositions;
     [Tooltip("0 = stiff/glued to hand, higher numbers = stretchy/elastic")]
     public float interactionCompliance = 0.0f;
 
@@ -90,11 +91,22 @@ public class Visualizer : MonoBehaviour
         public int tetIndex;
         public float4 weights;
     }
+
+    /*
     public struct GrabbedVertex
     {
         public int index;
         public float3 localOffset;
     }
+    */
+
+    public struct GrabbedVertex
+    {
+        public int index;
+        public float3 localOffset;
+        public int handIndex;
+    }
+
     void Start()
     {
         string path = Path.Combine(Application.streamingAssetsPath, vtkFileName);
@@ -113,6 +125,7 @@ public class Visualizer : MonoBehaviour
         velocities = new NativeArray<float3>(vertexCount, Allocator.Persistent);
         invMasses = new NativeArray<float>(vertexCount, Allocator.Persistent);
         grabbedVertices = new NativeList<GrabbedVertex>(Allocator.Persistent);
+        handTargetPositions = new NativeArray<float3>(2, Allocator.Persistent);
 
         for(int i = 0; i < vertexCount; i++)
         {
@@ -330,7 +343,8 @@ public class Visualizer : MonoBehaviour
                   predictedPositions = this.predictedPositions,
                   invMasses = this.invMasses,
                   grabbedVertices = this.grabbedVertices.AsArray(),
-                  targetPosition = this.handLocalTargetPosition,
+                  /*targetPosition = this.handLocalTargetPosition,*/
+                  handTargetPositions = this.handTargetPositions,
                   compliance = this.interactionCompliance,
                   h = h  
                 };
@@ -687,7 +701,8 @@ public class Visualizer : MonoBehaviour
         public NativeArray<float3> predictedPositions;
         [ReadOnly] public NativeArray<float> invMasses;
         [ReadOnly] public NativeArray<GrabbedVertex> grabbedVertices;
-        public float3 targetPosition;
+        [ReadOnly] public NativeArray<float3> handTargetPositions;
+        //public float3 targetPosition;
         public float compliance;
         public float h;
 
@@ -701,7 +716,8 @@ public class Visualizer : MonoBehaviour
             if(w <= 0f) return;
 
             float alpha = compliance/ (h*h);
-            float3 desiredPos = targetPosition + g.localOffset;
+            //float3 desiredPos = targetPosition + g.localOffset;
+            float3 desiredPos = handTargetPositions[g.handIndex] + g.localOffset;
             float3 currentPos = predictedPositions[idx];
             float3 dir = currentPos - desiredPos;
 
@@ -759,6 +775,7 @@ public class Visualizer : MonoBehaviour
         if(skinningMapping.IsCreated) skinningMapping.Dispose();
         if(visualVertices.IsCreated) visualVertices.Dispose();
         if (grabbedVertices.IsCreated) grabbedVertices.Dispose();
+        if(handTargetPositions.IsCreated) handTargetPositions.Dispose();
     }
 }
 
