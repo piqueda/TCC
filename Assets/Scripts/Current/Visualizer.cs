@@ -92,14 +92,6 @@ public class Visualizer : MonoBehaviour
         public float4 weights;
     }
 
-    /*
-    public struct GrabbedVertex
-    {
-        public int index;
-        public float3 localOffset;
-    }
-    */
-
     public struct GrabbedVertex
     {
         public int index;
@@ -279,7 +271,7 @@ public class Visualizer : MonoBehaviour
             tempEdges.Add(new Edge(min, max));
         }
     }
-
+   
     // Update is called once per frame
     void Update()
     {
@@ -318,23 +310,6 @@ public class Visualizer : MonoBehaviour
             };
             JobHandle solveHandle = solveJob.Schedule(integrateHandle);
 
-            /*
-            JobHandle interactionHandle = solveHandle;
-            if(grabbedVertexIndex >= 0 && grabbedVertexIndex < positions.Length)
-            {
-                SolveAttachmentConstraintJob interactionJob = new SolveAttachmentConstraintJob
-                {
-                  predictedPositions = this.predictedPositions,
-                  invMasses = this.invMasses,
-                  grabbedVertexIndex = this.grabbedVertexIndex,
-                  targetPosition = (float3)this.grabTargetPosition,
-                  compliance = this.interactionCompliance,
-                  h = h  
-                };
-                interactionHandle = interactionJob.Schedule(solveHandle);
-            }
-            */
-
             JobHandle interactionHandle = solveHandle;
             if(grabbedVertices.IsCreated && grabbedVertices.Length > 0)
             {
@@ -348,7 +323,8 @@ public class Visualizer : MonoBehaviour
                   compliance = this.interactionCompliance,
                   h = h  
                 };
-                interactionHandle = interactionJob.Schedule(grabbedVertices.Length, 16, solveHandle);
+                //interactionHandle = interactionJob.Schedule(grabbedVertices.Length, 16, solveHandle);
+                interactionHandle = interactionJob.Schedule(solveHandle);
             }
 
             FinalizePositionsJob finalizeJob = new FinalizePositionsJob
@@ -363,8 +339,9 @@ public class Visualizer : MonoBehaviour
             JobHandle finalizeHandle = finalizeJob.Schedule(positions.Length, 64, interactionHandle);
 
             finalizeHandle.Complete();
+        }
 
-            if(visualMeshFilter != null && skinningMapping.IsCreated)
+        if(visualMeshFilter != null && skinningMapping.IsCreated)
             {
                 UpdateVisualMeshJob skinJob = new UpdateVisualMeshJob
                 {
@@ -382,11 +359,10 @@ public class Visualizer : MonoBehaviour
                 visMesh.RecalculateNormals();
                 visMesh.RecalculateBounds();
             }
-        }
     }
     
-    [BurstCompile(FloatMode = FloatMode.Fast, FloatPrecision = FloatPrecision.Standard, CompileSynchronously = true)]
-    private struct IntegrateForcesJob : IJobParallelFor
+        [BurstCompile(FloatMode = FloatMode.Fast, FloatPrecision = FloatPrecision.Standard, CompileSynchronously = true)]
+        private struct IntegrateForcesJob : IJobParallelFor
     {
         [ReadOnly] public NativeArray<float3> positions;
         public NativeArray<float3> predictedPositions;
@@ -666,36 +642,6 @@ public class Visualizer : MonoBehaviour
 
     /*
     [BurstCompile(CompileSynchronously = true)]
-    private struct SolveAttachmentConstraintJob : IJob
-    {
-        public NativeArray<float3> predictedPositions;
-        [ReadOnly] public NativeArray<float> invMasses;
-
-        public int grabbedVertexIndex;
-        public float3 targetPosition;
-        public float compliance;
-        public float h;
-
-        public void Execute()
-        {
-            // Boundary safety check
-            if (grabbedVertexIndex < 0 || grabbedVertexIndex >= predictedPositions.Length) return;
-
-            float w = invMasses[grabbedVertexIndex];
-            if (w <= 0f) return; // If it's a static anchor point, don't move it
-
-            float alpha = compliance / (h * h);
-            float3 currentPos = predictedPositions[grabbedVertexIndex];
-            float3 dir = currentPos - targetPosition;
-
-            // Calculate XPBD displacement correction
-            float3 deltaP = -(w / (w + alpha)) * dir;
-            predictedPositions[grabbedVertexIndex] += deltaP;
-        }
-    }
-    */
-
-    [BurstCompile(CompileSynchronously = true)]
     private struct SolveMultiAttachmentConstraintJob: IJobParallelFor
     {
         public NativeArray<float3> predictedPositions;
@@ -723,6 +669,39 @@ public class Visualizer : MonoBehaviour
 
             float3 deltaP = -(w / (w + alpha)) * dir;
             predictedPositions[idx] += deltaP;
+        }
+    }
+    */
+
+    [BurstCompile(CompileSynchronously = true)]
+    private struct SolveMultiAttachmentConstraintJob : IJob
+    {
+        public NativeArray<float3> predictedPositions;
+        [ReadOnly] public NativeArray<float> invMasses;
+        [ReadOnly] public NativeArray<GrabbedVertex> grabbedVertices;
+        [ReadOnly] public NativeArray<float3> handTargetPositions;
+        public float compliance;
+        public float h;
+
+        public void Execute()
+        {
+            for (int i = 0; i < grabbedVertices.Length; i++)
+            {
+                GrabbedVertex g = grabbedVertices[i];
+                int idx = g.index;
+                
+                if (idx < 0 || idx >= predictedPositions.Length) continue;
+                float w = invMasses[idx];
+                if (w <= 0f) continue;
+
+                float alpha = compliance / (h * h);
+                float3 desiredPos = handTargetPositions[g.handIndex] + g.localOffset;
+                float3 currentPos = predictedPositions[idx];
+                float3 dir = currentPos - desiredPos;
+
+                float3 deltaP = -(w / (w + alpha)) * dir;
+                predictedPositions[idx] += deltaP;
+            }
         }
     }
 

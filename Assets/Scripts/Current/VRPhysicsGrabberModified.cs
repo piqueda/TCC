@@ -23,80 +23,17 @@ public class VRPhysicsGrabberModified : MonoBehaviour
     public bool showGrabSphere = true;
 
     private bool isGrabbing = false;
-    /*
+
     void Update()
     {
         if(physicsSolver == null) return;
-
-        bool triggerPressed = (grabAction.action != null && grabAction.action.IsPressed()) || Input.GetKey(KeyCode.Space);
-
-        if(!isGrabbing && triggerPressed)
-        {
-            TryGrabLiver();
-        }
-        else if (isGrabbing)
-        {
-            if (triggerPressed)
-            {
-                Vector3 localHandPos = physicsSolver.transform.InverseTransformPoint(transform.position);
-                physicsSolver.handLocalTargetPosition = (float3)localHandPos;
-            }
-            else
-            {
-                physicsSolver.grabbedVertices.Clear();
-                isGrabbing = false;
-                Debug.Log("[VR Grabber] Largou o fígado");
-            }
-        }
-    }
-    
-    private void TryGrabLiver()
-    {
-        var positions = physicsSolver.positions;
-        if(!positions.IsCreated) return;
-        physicsSolver.grabbedVertices.Clear();
-        Vector3 localHandPos = physicsSolver.transform.InverseTransformPoint(transform.position);
-        float3 localHandPosF3 = (float3)localHandPos;
-        for(int i = 0; i < positions.Length; i++)
-        {
-            float dst = math.distance(localHandPosF3, positions[i]);
-            if(dst < grabRadius)
-            {
-                physicsSolver.grabbedVertices.Add(new Visualizer.GrabbedVertex
-                {
-                    index = i,
-                    localOffset = positions[i] - localHandPosF3
-                });
-            }
-        }
-
-        if(physicsSolver.grabbedVertices.Length > 0)
-        {
-            physicsSolver.handLocalTargetPosition = localHandPosF3;
-            isGrabbing = true;
-            Debug.Log($"[VR Grabber] Agarrou {physicsSolver.grabbedVertices.Length} vertices");
-        }
-    }
-
-    private void OnDrawGizmosSelected()
-    {
-        if (!showGrabSphere) return;
-        Gizmos.color = isGrabbing ? Color.green : Color.cyan;
-        Gizmos.DrawWireSphere(transform.position, grabRadius);
-    */
-    void Update()
-    {
-        if(physicsSolver == null) return;
-        // Wait for the solver to initialize its arrays
         if(!physicsSolver.handTargetPositions.IsCreated) return;
 
-        // 1. ALWAYS update where this hand is in the liver's local space
         Vector3 localHandPos = physicsSolver.transform.InverseTransformPoint(transform.position);
         physicsSolver.handTargetPositions[handIndex] = (float3)localHandPos;
 
         bool triggerPressed = (grabAction.action != null && grabAction.action.IsPressed()) || Input.GetKey(KeyCode.Space);
 
-        // 2. Handle Grab and Release
         if(!isGrabbing && triggerPressed)
         {
             TryGrabLiver((float3)localHandPos);
@@ -107,6 +44,7 @@ public class VRPhysicsGrabberModified : MonoBehaviour
         }
     }
 
+    /*
     private void TryGrabLiver(float3 localHandPos)
     {
         var positions = physicsSolver.positions;
@@ -123,7 +61,7 @@ public class VRPhysicsGrabberModified : MonoBehaviour
                 {
                     index = i,
                     localOffset = positions[i] - localHandPos,
-                    handIndex = this.handIndex // Tell the solver WHICH hand grabbed this
+                    handIndex = this.handIndex 
                 });
                 grabbedAnything = true;
             }
@@ -135,12 +73,85 @@ public class VRPhysicsGrabberModified : MonoBehaviour
             Debug.Log($"[VR Grabber] Hand {handIndex} agarrou!");
         }
     }
+    */
+
+    /*
+    private void TryGrabLiver(float3 localHandPos)
+    {
+        var positions = physicsSolver.positions;
+        if (!positions.IsCreated) return;
+
+        int closestIndex = -1;
+        float closestDist = grabRadius;
+
+        // Search physics nodes in solver local coordinates
+        for (int i = 0; i < positions.Length; i++)
+        {
+            float dst = math.distance(localHandPos, positions[i]);
+            if (dst < closestDist)
+            {
+                closestDist = dst;
+                closestIndex = i;
+            }
+        }
+
+        if (closestIndex >= 0)
+        {
+            physicsSolver.grabbedVertices.Add(new Visualizer.GrabbedVertex
+            {
+                index = closestIndex,
+                localOffset = positions[closestIndex] - localHandPos,
+                handIndex = this.handIndex 
+            });
+
+            isGrabbing = true;
+            Debug.Log($"[VR Grabber] Hand {handIndex} agarrou o nó {closestIndex}!");
+        }
+        else
+        {
+            Debug.Log($"[VR Grabber] Hand {handIndex} errou: nenhum nó a menos de {grabRadius} unidades.");
+        }
+    }
+    */
+
+    private void TryGrabLiver(float3 localHandPos)
+    {
+        var positions = physicsSolver.positions;
+        if (!positions.IsCreated) return;
+
+        bool grabbedAny = false;
+
+        // Grab ALL physics nodes inside grabRadius to move a volume patch of tissue
+        for (int i = 0; i < positions.Length; i++)
+        {
+            float dst = math.distance(localHandPos, positions[i]);
+            if (dst < grabRadius)
+            {
+                physicsSolver.grabbedVertices.Add(new Visualizer.GrabbedVertex
+                {
+                    index = i,
+                    localOffset = positions[i] - localHandPos,
+                    handIndex = this.handIndex
+                });
+                grabbedAny = true;
+            }
+        }
+
+        if (grabbedAny)
+        {
+            isGrabbing = true;
+            Debug.Log($"[VR Grabber] Hand {handIndex} grabbed tissue region ({physicsSolver.grabbedVertices.Length} nodes)!");
+        }
+        else
+        {
+            Debug.Log($"[VR Grabber] Hand {handIndex} missed grab: no physics nodes within {grabRadius} units.");
+        }
+    }
 
     private void ReleaseLiver()
     {
         if (!physicsSolver.grabbedVertices.IsCreated) return;
 
-        // Loop backwards to safely remove ONLY this hand's vertices
         for (int i = physicsSolver.grabbedVertices.Length - 1; i >= 0; i--)
         {
             if (physicsSolver.grabbedVertices[i].handIndex == this.handIndex)

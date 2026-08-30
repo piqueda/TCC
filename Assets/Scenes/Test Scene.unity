@@ -716,7 +716,7 @@ MonoBehaviour:
       m_Flags: 0
     m_Reference: {fileID: 7904272356298805229, guid: c348712bda248c246b8c49b3db54643f, type: 3}
   handIndex: 1
-  grabRadius: 0.05
+  grabRadius: 0.008
   showGrabSphere: 1
 --- !u!1 &529073788
 GameObject:
@@ -876,7 +876,7 @@ Transform:
   m_GameObject: {fileID: 544094629}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.22079, y: -0, z: -1.25903}
+  m_LocalPosition: {x: 0.22079, y: -0.3105, z: -1.25903}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -1657,7 +1657,7 @@ MonoBehaviour:
   friction: 0.9
   devCompliance: 0.001
   density: 1000
-  interactionCompliance: 0
+  interactionCompliance: 0.0005
   floorLevel: -1.5
   pointRadius: 0.002
   pointColor: {r: 0, g: 1, b: 1, a: 1}
@@ -1782,7 +1782,7 @@ MonoBehaviour:
       m_Flags: 0
     m_Reference: {fileID: -4289430672226363583, guid: c348712bda248c246b8c49b3db54643f, type: 3}
   handIndex: 0
-  grabRadius: 0.05
+  grabRadius: 0.008
   showGrabSphere: 1
 --- !u!1 &1817555781
 GameObject:
@@ -1982,7 +1982,7 @@ MonoBehaviour:
       m_Calls: []
   m_text: '- Joystick for movement
 
-    - Trigger for interating
+    - Trigger for interacting
 
 '
   m_isRightToLeft: 0
