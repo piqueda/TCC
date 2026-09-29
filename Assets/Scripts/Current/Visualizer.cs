@@ -73,7 +73,7 @@ public class Visualizer : MonoBehaviour
     private NativeArray<float> restLengths;
     private NativeArray<float> edgeLambdas;
     
-    private NativeArray<int> uniqueTetrahedra;
+    public NativeArray<int> uniqueTetrahedra;
     private NativeArray<float> restVolumes;
     private NativeArray<float> volumeLambdas;
 
