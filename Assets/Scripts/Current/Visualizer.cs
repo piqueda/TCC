@@ -705,6 +705,17 @@ public class Visualizer : MonoBehaviour
         }
     }
 
+    public void ClearVelocities()
+    {
+        if (velocities.IsCreated)
+        {
+            for(int i = 0; i < velocities.Length; i++)
+            {
+                velocities[i] = Unity.Mathematics.float3.zero;
+            }
+        }
+    }
+
 
     void OnDrawGizmos()
     {
